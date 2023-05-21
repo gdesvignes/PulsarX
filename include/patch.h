@@ -16,6 +16,7 @@ class Patch : public DataBuffer<float>
 public:
 	Patch();
 	~Patch();
+	Patch(const Patch& p) {filltype=p.filltype; width=p.width; threshold=p.threshold;};
 	void prepare(DataBuffer<float> &databuffer);
 	DataBuffer<float> * filter(DataBuffer<float> &databuffer);
 	DataBuffer<float> * filter2(DataBuffer<float> &databuffer);

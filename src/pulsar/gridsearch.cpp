@@ -36,13 +36,16 @@ GridSearch::GridSearch()
 	ddmstep = 0.;
 	nddm = 0;
 	clfd_q = -1.;
-
+	rmstep = 5.;
+	rmlim = 100000.0;
+	
 	nsubint = 0;
 	nchan = 0;
 	nbin = 0;
 	mean = 0.;
 	var = 0.;
-
+	npol = 0;
+	
 	snr = 0.;
 	width = 0.;
 	p0 = 0.;
@@ -76,9 +79,12 @@ GridSearch::GridSearch(const GridSearch &gridsearch)
 	ddmstep = gridsearch.ddmstep;
 	nddm = gridsearch.nddm;
 	clfd_q = gridsearch.clfd_q;
+	rmstep = gridsearch.rmstep;
+	rmlim = gridsearch.rmlim;
 	nsubint = gridsearch.nsubint;
 	nchan = gridsearch.nchan;
 	nbin = gridsearch.nbin;
+	npol = gridsearch.npol;
 	mean = gridsearch.mean;
 	var = gridsearch.var;
 	ffold = gridsearch.ffold;
@@ -122,9 +128,12 @@ GridSearch & GridSearch::operator=(const GridSearch &gridsearch)
 	ddmstep = gridsearch.ddmstep;
 	nddm = gridsearch.nddm;
 	clfd_q = gridsearch.clfd_q;
+	rmstep = gridsearch.rmstep;
+	rmlim = gridsearch.rmlim;
 	nsubint = gridsearch.nsubint;
 	nchan = gridsearch.nchan;
 	nbin = gridsearch.nbin;
+	npol = gridsearch.npol;
 	mean = gridsearch.mean;
 	var = gridsearch.var;
 	ffold = gridsearch.ffold;
@@ -161,15 +170,17 @@ void GridSearch::prepare(ArchiveLite &arch)
 	nsubint = arch.profiles.size();
 	nchan = arch.nchan;
 	nbin = arch.nbin;
+	npol = arch.npol;
+
+	cout <<nsubint << " " << nchan << " " << nbin << " " << npol << endl; 
 
 	frequencies = arch.frequencies;
 	ffold.resize(nsubint, 0.);
 	tsuboff.resize(nsubint, 0.);
-	profiles.resize(nsubint*nchan*nbin, 0.);
+	profiles.resize(nsubint*nchan*nbin * npol, 0.);
 
 	double tcentre = (arch.ref_epoch-arch.start_mjd).to_second();
 
-	int npol = arch.npol;
 	for (long int l=0; l<nsubint; l++)
 	{
 		tsuboff[l] = arch.profiles[l].offs_sub - tcentre;
@@ -181,7 +192,7 @@ void GridSearch::prepare(ArchiveLite &arch)
 			{
 				for (long int i=0; i<nbin; i++)
 				{
-				   profiles[l*nchan*nbin+j*nbin+i] += arch.profiles[l].data[k*nchan*nbin+j*nbin+i];
+				   profiles[l*nchan*nbin+j*nbin+i + k*nsubint*nchan*nbin] += arch.profiles[l].data[k*nchan*nbin+j*nbin+i];
 				}
 			}
 		}
@@ -198,6 +209,60 @@ void GridSearch::prepare(ArchiveLite &arch)
 		clfd3();
 
 	get_rms();
+
+	// Faraday synthesis
+	lambda2.resize(nchan);
+	for (long int j=0; j<nchan; j++)
+	  lambda2[j] = powf(299792458. / (frequencies[j]*1e6), 2);
+
+	// Make range of RM trials
+	float dRM = rmstep;
+	float minRM = -rmlim;
+	nRMs = (int)2*rmlim/rmstep;
+	RM_trials.resize(nRMs);
+	for (int i=0; i<nRMs; i++)
+	  RM_trials[i] = minRM + dRM*i;
+
+	L.resize(nchan);
+	Lavg.resize(nRMs);
+}
+
+void GridSearch::runFaraday()
+{
+
+  if (pulsespan.back()>nbin || pulsespan.back()<0 || pulsespan.front() > nbin || pulsespan.front() < 0 || pulsespan.back()<=pulsespan.front()) {
+    cout <<"GridSearch::Faraday> " << pulsespan.front() << " " << pulsespan.back() << " " << nbin << endl;
+     return;
+  }
+
+    const complex<float> ic(0.0, 1.0);
+    cout << "GridSearch::runFaraday> Nchan=" << nchan << " Pulse front (bin): " <<  pulsespan.front() << " Pulse front (bin):" << pulsespan.back() << " Nbin: " << nbin <<endl;
+    for (int j=0; j<nchan; j++) {
+      L[j] = 0.0;
+      for (int i=0; i<nsubint; i++) {
+	for (int k=0; k<nbin; k++) {
+	  if (pulsespan[0] <= k && k <= pulsespan[1]) {
+	    L[j] +=  profiles[i*nchan*nbin+j*nbin+k + 1*nsubint*nchan*nbin] + ic * profiles[i*nchan*nbin+j*nbin+k+ 2*nsubint*nchan*nbin];
+	  }
+	  //cerr << j << " " << i <<" "<<k<< " "<<profiles[i*nchan*nbin+j*nbin+k] << " " << profiles[i*nchan*nbin+j*nbin+k + 1*nsubint*nchan*nbin] << " " << profiles[i*nchan*nbin+j*nbin+k + 2*nsubint*nchan*nbin]  << endl;
+	}
+      }
+    }
+    const complex<float> ic2(0.0, -2.0);
+    complex<float> tmp;
+    for (int i=0; i<nRMs; i++) {
+        tmp =  0.0;
+        for (int j=0; j<nchan; j++) {
+
+            tmp += (L[j] * exp(ic2 * lambda2[j] * RM_trials[i]));
+        }
+	Lavg[i] = fabs(tmp);
+	//cout <<RM_trials[i] << " " <<  Lavg[i] << endl;
+    }
+
+    auto bestRMidx = distance(Lavg.begin(), max_element(begin(Lavg), end(Lavg)) );
+    
+    bestRM = RM_trials[bestRMidx];
 }
 
 void GridSearch::runFFdot()
@@ -374,10 +439,13 @@ bool GridSearch::bestprofiles()
 		return true;
 	}
 
-	vector<float> profiles2(nsubint*nchan*nbin, 0.);
+	vector<float> profiles2(nsubint*nchan*nbin*npol, 0.);
 
-	for (long int k=0; k<nsubint; k++)
-	{
+
+	for (int l=0; l<npol; l++)
+	  {
+	    for (long int k=0; k<nsubint; k++)
+	      {
 		int tdelayn = round((bestdf0*tsuboff[k]+0.5*bestdf1*tsuboff[k]*tsuboff[k])*nbin);
 		for (long int j=0; j<nchan; j++)
 		{
@@ -387,14 +455,15 @@ bool GridSearch::bestprofiles()
 			if (delayn<0) delayn += nbin;
 			for (long int i=0; i<delayn; i++)
 			{
-				profiles2[k*nchan*nbin+j*nbin+i] = profiles[k*nchan*nbin+j*nbin+(i-delayn+nbin)];
+			  profiles2[k*nchan*nbin+j*nbin+i + l*nsubint*nchan*nbin] = profiles[k*nchan*nbin+j*nbin+(i-delayn+nbin) + l*nsubint*nchan*nbin];
 			}
 			for (long int i=delayn; i<nbin; i++)
 			{
-				profiles2[k*nchan*nbin+j*nbin+i] = profiles[k*nchan*nbin+j*nbin+(i-delayn)];
+			  profiles2[k*nchan*nbin+j*nbin+i + l*nsubint*nchan*nbin] = profiles[k*nchan*nbin+j*nbin+(i-delayn) + l*nsubint*nchan*nbin];
 			}
 		}
-	}
+	      }
+	  }
 
 	profiles = profiles2;
 
@@ -437,29 +506,35 @@ float GridSearch::get_chisq(vector<float> &pro)
  */
 void GridSearch::get_snr_width(double c)
 {
-	profile.resize(nbin, 0.);
-	for (long int k=0; k<nsubint; k++)
-	{
+	profile.resize(nbin*npol, 0.);
+	for (int l=0; l<npol; l++)
+	  {
+	    for (long int k=0; k<nsubint; k++)
+	      {
 		for (long int j=0; j<nchan; j++)
 		{
 			for (long int i=0; i<nbin; i++)
 			{
-				profile[i] += profiles[k*nchan*nbin+j*nbin+i];
+				profile[i + l*nbin] += profiles[k*nchan*nbin+j*nbin+i + l*nsubint*nchan*nbin];
 			}
 		}
-	}
+	      }
+	  }
 
 	double tmp_mean = 0.;
 	double tmp_var = 0.;
 
-	get_mean_var2<std::vector<double>::iterator>(profile.begin(), nbin, tmp_mean, tmp_var);
+	for (int l=0; l<npol; l++) {
+	  tmp_mean = 0.; tmp_var = 0.;
+	  get_mean_var2<std::vector<double>::iterator>(profile.begin()+l*nbin, nbin, tmp_mean, tmp_var);
 
-	tmp_var = tmp_var==0. ? 1.:tmp_var;
+	  tmp_var = tmp_var==0. ? 1.:tmp_var;
 
-	for (long int i=0; i<nbin; i++)
-	{
-		profile[i] -= tmp_mean;
-		profile[i] /= sqrt(tmp_var);
+	  for (long int i=0; i<nbin; i++)
+	    {
+	      profile[i + l*nbin] -= tmp_mean;
+	      profile[i + l*nbin] /= sqrt(tmp_var);
+	    }
 	}
 
 	snr = 0.;
@@ -581,25 +656,29 @@ void GridSearch::subints_normalize()
  */
 void GridSearch::normalize()
 {
+
+  for (int l=0; l<npol; l++)
+    {
 	for (long int k=0; k<nsubint; k++)
 	{
 		for (long int j=0; j<nchan; j++)
 		{
 			double tmp_mean = 0.;
 			double tmp_var = 0.;
-
-			get_mean_var<std::vector<float>::iterator>(profiles.begin()+k*nchan*nbin+j*nbin, nbin, tmp_mean, tmp_var);
+			
+			get_mean_var<std::vector<float>::iterator>(profiles.begin()+k*nchan*nbin+j*nbin + l*nsubint*nchan*nbin, nbin, tmp_mean, tmp_var);
 
 			tmp_var = tmp_var==0? 1:tmp_var;
 			tmp_var = std::sqrt(tmp_var);
 
 			for (long int i=0; i<nbin; i++)
 			{
-				profiles[k*nchan*nbin+j*nbin+i] -= tmp_mean;
-				profiles[k*nchan*nbin+j*nbin+i] /= tmp_var;
+				profiles[k*nchan*nbin+j*nbin+i + l*nsubint*nchan*nbin] -= tmp_mean;
+				profiles[k*nchan*nbin+j*nbin+i + l*nsubint*nchan*nbin] /= tmp_var;
 			}
 		}
 	}
+    }
 }
 
 /**

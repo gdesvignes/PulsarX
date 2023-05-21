@@ -7,6 +7,7 @@
  */
 
 #include <limits>
+#include <iostream>
 #include <random>
 #include "preprocesslite.h"
 #include "utils.h"
@@ -22,7 +23,7 @@ void PreprocessLite::prepare(DataBuffer<float> &databuffer)
 	nsamples = databuffer.nsamples/td;
 	nchans = databuffer.nchans/fd;
 
-	resize(nsamples, nchans);
+	resize(nsamples, nchans, 1);
 	tsamp = databuffer.tsamp*td;
 
 	fill(frequencies.begin(), frequencies.end(), 0.);
@@ -122,7 +123,7 @@ DataBuffer<float> * PreprocessLite::run(DataBuffer<float> &databuffer)
 		chmean[j] = chmean1[j];
 		chstd[j] = chmean2[j]-tmp;
 		
-		if (chstd[j] > 0.)
+		if (chstd[j] != 0)
 		{
 			chskewness[j] = chmean3[j]-3.*chmean2[j]*chmean1[j]+2.*tmp*chmean1[j];
 			chkurtosis[j] = chmean4[j]-4.*chmean3[j]*chmean1[j]+6.*chmean2[j]*tmp-3.*tmp*tmp;
@@ -188,7 +189,6 @@ DataBuffer<float> * PreprocessLite::run(DataBuffer<float> &databuffer)
 			kill_count++;
 		}
 	}
-
 	killrate = kill_count * 1. / databuffer.nchans;
 
 	if (td == 1 && fd == 1)

@@ -53,7 +53,7 @@ namespace Pulsar
 
 		void get_subdata(DataBuffer<float> &databuffer, int idm)
 		{
-			databuffer.resize(ndump, nsubband);
+		  databuffer.resize(ndump, nsubband, 1);
 			databuffer.tsamp = tsamp;
 			databuffer.frequencies = frequencies_sub;
 

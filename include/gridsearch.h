@@ -13,6 +13,8 @@
 #include <map>
 
 #include "archivelite.h"
+#include <complex>
+#include <cmath>
 
 using namespace std;
 
@@ -26,6 +28,7 @@ namespace Pulsar
 		GridSearch & operator=(const GridSearch &gridsearch);
 		~GridSearch();
 		void prepare(ArchiveLite &arch);
+		void runFaraday();
 		void runFFdot();
 		void runDM();
 		bool bestprofiles();
@@ -92,8 +95,11 @@ namespace Pulsar
 		int nsubint;
 		int nchan;
 		int nbin;
+		int npol;
 		double mean;
 		double var;
+	  double rmlim;
+	  double rmstep;
 		vector<double> ffold;
 		vector<double> tsuboff;
 		vector<double> frequencies;
@@ -118,6 +124,13 @@ namespace Pulsar
 		double err_p1;
 		double err_dm;
 		double err_acc;
+	public: // Faraday stuff
+		long unsigned int nRMs;
+		vector<complex<float>> L;
+		vector<float> Lavg;
+		vector<float> RM_trials;
+		vector<float> lambda2;
+		float bestRM;
 	};
 }
 

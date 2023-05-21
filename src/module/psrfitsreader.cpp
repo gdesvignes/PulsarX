@@ -47,12 +47,8 @@ void PsrfitsReader::check()
 		psf[i].load_mode();
 		psf[i].subint.load_header(psf[i].fptr);
 		nsamples += psf[i].subint.nsamples;
-
-		Integration tmp;
-		psf[i].subint.load_integration(psf[i].fptr, 0, tmp);
-
-		mjd_starts.push_back(psf[i].primary.start_mjd + (tmp.offs_sub - 0.5 * psf[i].subint.nsblk * psf[i].subint.tbin));
-		mjd_ends.push_back(psf[i].primary.start_mjd + ((tmp.offs_sub - 0.5 * psf[i].subint.nsblk * psf[i].subint.tbin) + psf[i].subint.nsamples*psf[i].subint.tbin));
+		mjd_starts.push_back(psf[i].primary.start_mjd);
+		mjd_ends.push_back(psf[i].primary.start_mjd+psf[i].subint.nsamples*psf[i].subint.tbin);
 		psf[i].close();
 	}
 
@@ -117,12 +113,12 @@ void PsrfitsReader::read_header()
 {
 	BOOST_LOG_TRIVIAL(info)<<"read header";
 
-	psf[idmap[0]].open();
-	psf[idmap[0]].primary.load(psf[idmap[0]].fptr);
-	psf[idmap[0]].load_mode();
-	psf[idmap[0]].subint.load_header(psf[idmap[0]].fptr);
+	psf[0].open();
+	psf[0].primary.load(psf[0].fptr);
+	psf[0].load_mode();
+	psf[0].subint.load_header(psf[0].fptr);
 
-	if (psf[idmap[0]].mode != Integration::SEARCH)
+	if (psf[0].mode != Integration::SEARCH)
 	{
 		BOOST_LOG_TRIVIAL(error)<<"mode is not SEARCH";
 		exit(-1);
@@ -130,50 +126,50 @@ void PsrfitsReader::read_header()
 
 	if (beam.empty())
 	{
-		if (strcmp(psf[idmap[0]].primary.ibeam, "") != 0)
+		if (strcmp(psf[0].primary.ibeam, "") != 0)
 		{
 			BOOST_LOG_TRIVIAL(info)<<"read beam_id from file";
-			beam = psf[idmap[0]].primary.ibeam;
+			beam = psf[0].primary.ibeam;
 		}
 	}
 	
 	if (source_name.empty())
 	{
-		if (strcmp(psf[idmap[0]].primary.src_name, "") != 0)
+		if (strcmp(psf[0].primary.src_name, "") != 0)
 		{
 			BOOST_LOG_TRIVIAL(info)<<"read source name from file";
-			source_name = psf[idmap[0]].primary.src_name;
+			source_name = psf[0].primary.src_name;
 		}
 	}
 
 	if (telescope.empty())
 	{
-		if (strcmp(psf[idmap[0]].primary.telesop, "") != 0)
+		if (strcmp(psf[0].primary.telesop, "") != 0)
 		{
 			BOOST_LOG_TRIVIAL(info)<<"read telescope from file";
-			telescope = psf[idmap[0]].primary.telesop;
+			telescope = psf[0].primary.telesop;
 		}
 	}
 
 	if (ra.empty())
 	{
-		if (strcmp(psf[idmap[0]].primary.ra, "") != 0)
+		if (strcmp(psf[0].primary.ra, "") != 0)
 		{
 			BOOST_LOG_TRIVIAL(info)<<"read ra from file";
-			ra = psf[idmap[0]].primary.ra;
+			ra = psf[0].primary.ra;
 		}
 	}
 
 	if (dec.empty())
 	{
-		if (strcmp(psf[idmap[0]].primary.dec, "") != 0)
+		if (strcmp(psf[0].primary.dec, "") != 0)
 		{
 			BOOST_LOG_TRIVIAL(info)<<"read dec from file";
-			dec = psf[idmap[0]].primary.dec;
+			dec = psf[0].primary.dec;
 		}
 	}
 
-	psf[idmap[0]].subint.load_integration(psf[idmap[0]].fptr, 0, it);
+	psf[0].subint.load_integration(psf[0].fptr, 0, it);
 
 	it8 = it;
 	it8.dtype = Integration::UINT8;
@@ -181,29 +177,17 @@ void PsrfitsReader::read_header()
 	delete [] (unsigned char *)(it8.data);
 	it8.data = new unsigned char [it.nsblk * it.npol * it.nchan];
 
-	poltype = psf[idmap[0]].subint.poltype;
 	nchans = it.nchan;
-	tsamp = psf[idmap[0]].subint.tbin;
+	tsamp = psf[0].subint.tbin;
 	nifs = it.npol;
 	nsblk = it.nsblk;
 
-	start_mjd = psf[idmap[0]].primary.start_mjd + (it.offs_sub - 0.5 * psf[idmap[0]].subint.nsblk * psf[idmap[0]].subint.tbin);
+	start_mjd = psf[idmap[0]].primary.start_mjd;
 
 	frequencies.resize(nchans, 0.);
 	std::memcpy(frequencies.data(), it.frequencies, sizeof(double)*nchans);
 
-	if (poltype == Integration::IQUV)
-	{
-		norm_x.resize(nchans, 1.);
-		norm_y.resize(nchans, 0.);
-	}
-	else
-	{
-		norm_x.resize(nchans, 1.);
-		norm_y.resize(nchans, 1.);
-	}
-
-	psf[idmap[0]].close();
+	psf[0].close();
 }
 
 size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, bool virtual_reading)
@@ -312,7 +296,7 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 										float xx = it.weights[j] * ((((unsigned char *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off) * it.scales[0*nchans+j] + it.offsets[0*nchans+j]);
 										float yy = it.weights[j] * ((((unsigned char *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off) * it.scales[1*nchans+j] + it.offsets[1*nchans+j]);
 										
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+										databuffer.buffer[bcnt1*nchans+j] = xx + yy;
 									}
 								}
 								else
@@ -322,7 +306,7 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 										float xx = it.weights[j] * (((unsigned char *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off);
 										float yy = it.weights[j] * (((unsigned char *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off);
 
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+										databuffer.buffer[bcnt1*nchans+j] = xx + yy;
 									}
 								}
 							}
@@ -335,7 +319,7 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 										float xx = (((unsigned char *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off) * it.scales[0*nchans+j] + it.offsets[0*nchans+j];
 										float yy = (((unsigned char *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off) * it.scales[1*nchans+j] + it.offsets[1*nchans+j];
 
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+										databuffer.buffer[bcnt1*nchans+j] = xx + yy;
 									}
 								}
 								else
@@ -345,7 +329,7 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 										float xx = ((unsigned char *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off;
 										float yy = ((unsigned char *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off;
 
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+										databuffer.buffer[bcnt1*nchans+j] = xx + yy;
 									}
 								}
 							}
@@ -404,7 +388,7 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 										float xx = it8.weights[j] * ((((unsigned char *)(it8.data))[i*nifs*nchans+0*nchans+j] - zero_off) * it8.scales[0*nchans+j] + it8.offsets[0*nchans+j]);
 										float yy = it8.weights[j] * ((((unsigned char *)(it8.data))[i*nifs*nchans+1*nchans+j] - zero_off) * it8.scales[1*nchans+j] + it8.offsets[1*nchans+j]);
 										
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+										databuffer.buffer[bcnt1*nchans+j] = xx + yy;
 									}
 								}
 								else
@@ -414,7 +398,7 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 										float xx = it8.weights[j] * (((unsigned char *)(it8.data))[i*nifs*nchans+0*nchans+j] - zero_off);
 										float yy = it8.weights[j] * (((unsigned char *)(it8.data))[i*nifs*nchans+1*nchans+j] - zero_off);
 
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+										databuffer.buffer[bcnt1*nchans+j] = xx + yy;
 									}
 								}
 							}
@@ -427,7 +411,7 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 										float xx = (((unsigned char *)(it8.data))[i*nifs*nchans+0*nchans+j] - zero_off) * it8.scales[0*nchans+j] + it8.offsets[0*nchans+j];
 										float yy = (((unsigned char *)(it8.data))[i*nifs*nchans+1*nchans+j] - zero_off) * it8.scales[1*nchans+j] + it8.offsets[1*nchans+j];
 
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+										databuffer.buffer[bcnt1*nchans+j] = xx + yy;
 									}
 								}
 								else
@@ -437,13 +421,13 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 										float xx = ((unsigned char *)(it8.data))[i*nifs*nchans+0*nchans+j] - zero_off;
 										float yy = ((unsigned char *)(it8.data))[i*nifs*nchans+1*nchans+j] - zero_off;
 
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+										databuffer.buffer[bcnt1*nchans+j] = xx + yy;
 									}
 								}
 							}
 						}
 					}
-					else if (it.dtype == Integration::FLOAT)
+					else if (it.dtype == Integration::FLOAT) //for float IQUV data
 					{
 						if (!sumif or nifs == 1)
 						{
@@ -487,26 +471,30 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 						}
 						else
 						{
-							if (apply_wts)
+						  for (size_t k=0; k<nifs; k++)
+						    {
+						      if (apply_wts)
 							{
 								if (apply_scloffs)
 								{
 									for (size_t j=0; j<nchans; j++)
 									{
-										float xx = it.weights[j] * ((((float *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off) * it.scales[0*nchans+j] + it.offsets[0*nchans+j]);
-										float yy = it.weights[j] * ((((float *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off) * it.scales[1*nchans+j] + it.offsets[1*nchans+j]);
+										float Stokes = it.weights[j] * ((((float *)(it.data))[i*nifs*nchans+k*nchans+j] - zero_off) * it.scales[k*nchans+j] + it.offsets[k*nchans+j]);
+										//float Q = it.weights[j] * ((((float *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off) * it.scales[1*nchans+j] + it.offsets[1*nchans+j]);
+										//float U = it.weights[j] * ((((float *)(it.data))[i*nifs*nchans+2*nchans+j] - zero_off) * it.scales[2*nchans+j] + it.offsets[2*nchans+j]);
+										//float V = it.weights[j] * ((((float *)(it.data))[i*nifs*nchans+3*nchans+j] - zero_off) * it.scales[3*nchans+j] + it.offsets[3*nchans+j]);
 										
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+										databuffer.buffer[bcnt1*nifs*nchans+k*nchans+j] = Stokes;// + yy;
 									}
 								}
 								else
 								{
 									for (size_t j=0; j<nchans; j++)
 									{
-										float xx = it.weights[j] * (((float *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off);
-										float yy = it.weights[j] * (((float *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off);
-
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+									  //float xx = it.weights[j] * (((float *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off);
+										//float yy = it.weights[j] * (((float *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off);
+										float Stokes = it.weights[j] * (((float *)(it.data))[i*nifs*nchans+k*nchans+j] - zero_off);
+										databuffer.buffer[bcnt1*nifs*nchans+k*nchans+j] = Stokes;// + yy;
 									}
 								}
 							}
@@ -516,23 +504,24 @@ size_t PsrfitsReader::read_data(DataBuffer<float> &databuffer, size_t ndump, boo
 								{
 									for (size_t j=0; j<nchans; j++)
 									{
-										float xx = (((float *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off) * it.scales[0*nchans+j] + it.offsets[0*nchans+j];
-										float yy = (((float *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off) * it.scales[1*nchans+j] + it.offsets[1*nchans+j];
-
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+									  //float xx = (((float *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off) * it.scales[0*nchans+j] + it.offsets[0*nchans+j];
+									  //float yy = (((float *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off) * it.scales[1*nchans+j] + it.offsets[1*nchans+j];
+									  float Stokes = (((float *)(it.data))[i*nifs*nchans+k*nchans+j] - zero_off) * it.scales[k*nchans+j] + it.offsets[k*nchans+j];
+									  databuffer.buffer[bcnt1*nifs*nchans+k*nchans+j] = Stokes;// + yy;
 									}
 								}
 								else
 								{
 									for (size_t j=0; j<nchans; j++)
 									{
-										float xx = ((float *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off;
-										float yy = ((float *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off;
-
-										databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
+									  //float xx = ((float *)(it.data))[i*nifs*nchans+0*nchans+j] - zero_off;
+									  //	float yy = ((float *)(it.data))[i*nifs*nchans+1*nchans+j] - zero_off;
+									  float Stokes = ((float *)(it.data))[i*nifs*nchans+k*nchans+j] - zero_off;
+									  databuffer.buffer[bcnt1*nifs*nchans+k*nchans+j] = Stokes;// + yy;
 									}
 								}
 							}
+						    }
 						}
 					}
 					else

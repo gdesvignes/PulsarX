@@ -673,7 +673,6 @@ SubintHDU::SubintHDU()
 
 	mode = Integration::FOLD;
 	dtype = Integration::SHORT;
-	poltype = Integration::AABB;
 
 	integrations = NULL;
 }
@@ -805,21 +804,6 @@ bool SubintHDU::load_header(fitsfile *fptr)
 		return false;
 	}
 	nsubint = nrows;
-
-	char pol_type[FLEN_VALUE];
-	fits_read_key(fptr, TSTRING, "POL_TYPE", pol_type, NULL, &status);
-	if (status)
-	{
-		cerr<<"Error: can not read pol_type"<<endl;
-		fits_report_error(stderr, status);
-		return false;
-	}
-	if (strcmp(pol_type, "AABBCRCI") == 0)
-		poltype = Integration::AABBCRCI;
-	else if (strcmp(pol_type, "IQUV") == 0)
-		poltype = Integration::IQUV;
-	else
-		poltype = Integration::AABB;
 
 	fits_read_key(fptr, TINT, "NPOL", &npol, NULL, &status);
 	if (status)
@@ -1636,22 +1620,6 @@ bool SubintHDU::unload_header(fitsfile *fptr)
 	if (status)
 	{
 		cerr<<"Error: can not move to SUBINT"<<endl;
-		fits_report_error(stderr, status);
-		return false;
-	}
-
-	char pol_type[FLEN_VALUE];
-	if (poltype == Integration::AABBCRCI)
-		strcpy(pol_type, "AABBCRCI");
-	else if (poltype == Integration::IQUV)
-		strcpy(pol_type, "IQUV");
-	else
-		strcpy(pol_type, "AA+BB");
-
-	fits_update_key(fptr, TSTRING, "POL_TYPE", pol_type, NULL, &status);
-	if (status)
-	{
-		cerr<<"Error: can not set POL_TYPE"<<endl;
 		fits_report_error(stderr, status);
 		return false;
 	}

@@ -35,7 +35,7 @@ PulsarPlot::PulsarPlot(){}
 
 PulsarPlot::~PulsarPlot(){}
 
-void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::map<std::string, std::string> &obsinfo, int id, const string &rootname, bool plotx)
+void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::map<std::string, std::string> &obsinfo, int id, const string &rootname, const int fscrunch, bool plotx)
 {
 	string basename;
 	if (obsinfo.find("Basename") == obsinfo.end())
@@ -53,9 +53,10 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 	string figname = basename + ".png";
 
 	long int nsubint = gridsearch.nsubint;
-	long int nchan = gridsearch.nchan;
+	long int nchan = gridsearch.nchan/fscrunch;
 	long int nbin = gridsearch.nbin;
-
+	int npol = gridsearch.npol;
+	
 	long int ndm = gridsearch.nddm;
 	long int nf1 = gridsearch.ndf1;
 	long int nf0 = gridsearch.ndf0;
@@ -72,6 +73,15 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 	vdf1.resize(nf1);
 	vsnr_f1.resize(nf1);
 
+	bool pStokes=false;
+	if (npol == 4) pStokes=true;
+	
+	vector<float> Q(2*nbin, 0.);
+	vector<float> U(2*nbin, 0.);
+	vector<float> V(2*nbin, 0.);
+	vector<float> Qv(nchan*nbin, 0.);
+	vector<float> Uv(nchan*nbin, 0.);
+		
 	vector<float> mxtph, mxfph, mxsnr_ffdot;
 	mxtph.resize(nsubint*nbin*2, 0.);
 	mxfph.resize(nchan*nbin*2, 0.);
@@ -106,39 +116,51 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 	for (long int i=0; i<2*nbin; i++)
 	{
 		vp[i] = gridsearch.profile[i%nbin];
+		if (pStokes) {
+		  Q[i] = gridsearch.profile[i%nbin + 1*nbin];
+		  U[i] = gridsearch.profile[i%nbin + 2*nbin];
+		  V[i] = gridsearch.profile[i%nbin + 3*nbin];
+		}
 		vph[i] = i*1./nbin;
 	}
 
 	for (long int k=0; k<nsubint; k++)
 	{
 		vt[k] = gridsearch.tsuboff[k]-gridsearch.tsuboff[0];
-		for (long int i=0; i<nbin*2; i++)
-		{
-			mxtph[k*nbin*2+i] = 0.;
-		}
+		//for (long int i=0; i<nbin*2; i++)
+		  //{
+		  //mxtph[k*nbin*2+i] = 0.;
+			//}
 	}
 
+	
 	for (long int j=0; j<nchan; j++)
 	{
-		vf[j] = gridsearch.frequencies[j];
-		for (long int i=0; i<nbin*2; i++)
-		{
-			mxfph[j*nbin*2+i] = 0.;
-		}
+	  for  (long int i=0; i<fscrunch; i++)
+		vf[j] += gridsearch.frequencies[j*fscrunch + i];
+	  vf[j] /= fscrunch;
 	}
 
 	for (long int k=0; k<nsubint; k++)
 	{
 		for (long int j=0; j<nchan; j++)
 		{
+		  for (long int l=0; l<fscrunch; l++)
+		    {
 			for (long int i=0; i<nbin; i++)
 			{
-				mxfph[j*nbin*2+i] += gridsearch.profiles[k*nchan*nbin+j*nbin+i];
-				mxfph[j*nbin*2+i+nbin] += gridsearch.profiles[k*nchan*nbin+j*nbin+i];
+			  mxfph[j*nbin*2+i] += gridsearch.profiles[k*gridsearch.nchan*nbin+(j*fscrunch+l)*nbin+i];
+				mxfph[j*nbin*2+i+nbin] += gridsearch.profiles[k*gridsearch.nchan*nbin+(j*fscrunch+l)*nbin+i];
 
-				mxtph[k*nbin*2+i] += gridsearch.profiles[k*nchan*nbin+j*nbin+i];
-				mxtph[k*nbin*2+i+nbin] += gridsearch.profiles[k*nchan*nbin+j*nbin+i];
+				mxtph[k*nbin*2+i] += gridsearch.profiles[k*gridsearch.nchan*nbin+(j*fscrunch+l)*nbin+i];
+				mxtph[k*nbin*2+i+nbin] += gridsearch.profiles[k*gridsearch.nchan*nbin+(j*fscrunch+l)*nbin+i];
+
+				if (pStokes) {
+				  Qv[j*nbin + i] += gridsearch.profiles[k*gridsearch.nchan*nbin+j*nbin+i + 1*nsubint*gridsearch.nchan*nbin];
+				  Uv[j*nbin + i] += gridsearch.profiles[k*gridsearch.nchan*nbin+j*nbin+i + 2*nsubint*gridsearch.nchan*nbin];
+				}
 			}
+		    }
 		}
 	}
 
@@ -264,6 +286,11 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 	ss_ymw16_dist<<fixed<<setprecision(1)<<stod(obsinfo["Dist_YMW16"]);
 	s_ymw16_dist = ss_ymw16_dist.str();
 
+	std::string s_RM;
+	std::stringstream ss_RM;
+	ss_RM<<fixed<<setprecision(1)<<gridsearch.bestRM;
+	s_RM = ss_RM.str();
+	
 	//DM smearing
 	double fcentre = std::stod(obsinfo["Fcentre"]);
 	double bandwidth = std::stod(obsinfo["Bandwidth"]);
@@ -477,6 +504,7 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 		ax1.axvline(pulsespan[0], 0., 1., {{"color", "red"},{"linestyle", "--"}});
 		ax1.axvline(pulsespan[1], 0., 1., {{"color", "red"},{"linestyle", "--"}});
 		ax1.plot(vph, vp);
+		//if (pStokes) ax1.plot(vph, V, {{"color", "blue"}});
 		ax1.autoscale(true, "x", true);
 		ax1.set_ylabel("Flux");
 		ax1.set_fontsize_label(fontsize_label);
@@ -527,11 +555,11 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 		dmpos = dmpos <vdm[0]? vdm[0]:dmpos;
 		dmpos = dmpos >vdm.back()? vdm.back():dmpos;
 		//chi2-f0
-		PlotX::Axes ax4(0.48, 0.78, 0.6, 0.72);
+		PlotX::Axes ax4(0.48, 0.78, 0.52, 0.64);
 		ax4.plot(vdf0, vsnr_f0);
 		ax4.plot(vdf0, vchisq_f0, {{"color", "yellow"}});
 		ax4.axvline(xpos, 0, 1, {{"color", "red"}});
-		ax4.annotate("P0 (s) = "+s_p0, 0.1, 1.1, {{"xycoords","axes fraction"}, {"fontsize", "0.7"}});
+		//ax4.annotate("P0 (s) = "+s_p0, 0.1, 1.1, {{"xycoords","axes fraction"}, {"fontsize", "0.6"}});
 		ax4.set_xlabel("F0 - " + to_string(gridsearch.f0) + " (Hz)");
 		ax4.set_ylabel("\\gx\\u2");
 		ax4.set_fontsize_label(fontsize_label);
@@ -540,7 +568,7 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 		fig.push(ax4);
 
 		//chi2-f0-f1
-		PlotX::Axes ax5(0.48, 0.78, 0.24, 0.52);
+		PlotX::Axes ax5(0.48, 0.78, 0.23, 0.49);
 		ax5.pcolor(vdf0, vdf1, mxsnr_ffdot, "viridis");
 		ax5.cross(xpos, ypos, 4.);
 		ax5.label(false, false, false, false);
@@ -550,11 +578,11 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 		std::stringstream ss_f1;
 		ss_f1<<fixed<<setprecision(5)<<scientific<<f1;
 
-		PlotX::Axes ax6(0.86, 0.98, 0.24, 0.52);
+		PlotX::Axes ax6(0.86, 0.98, 0.23, 0.49);
 		ax6.plot(vsnr_f1, vdf1);
 		ax6.plot(vchisq_f1, vdf1, {{"color", "yellow"}});
 		ax6.axhline(ypos, 0, 1, {{"color", "red"}});
-		ax6.annotate("P1 (s/s) = "+s_p1, -0.8, 1.1, {{"xycoords","axes fraction"}, {"fontsize", "0.7"}});
+		ax6.annotate("P1 (s/s) = "+s_p1, -0.4, 1.1, {{"xycoords","axes fraction"}, {"fontsize", "0.6"}});
 		ax6.set_xlabel("\\gx\\u2");
 		ax6.set_ylabel("F1 -" + ss_f1.str() + " (Hz/s)");
 		ax6.set_fontsize_label(fontsize_label);
@@ -568,7 +596,7 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 		ax7.plot(vdm, vsnr_dm);
 		ax7.plot(vdm, vchisq_dm, {{"color", "yellow"}});
 		ax7.axvline(dmpos, 0, 1, {{"color", "red"}});
-		ax7.annotate("DM (pc/cc) = "+s_dm, 0.1, 1.1, {{"xycoords","axes fraction"}, {"fontsize", "0.7"}});
+		ax7.annotate("DM (pc/cc) = "+s_dm, 0.1, 1.1, {{"xycoords","axes fraction"}, {"fontsize", "0.6"}});
 		ax7.set_xlabel("DM (pc/cc)");
 		ax7.set_ylabel("\\gx\\u2");
 		ax7.set_fontsize_label(fontsize_label);
@@ -578,10 +606,10 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 
 		std::string fontsize = "0.6"; 
 		//metadata
-		PlotX::Axes ax8(0.48, 0.98, 0.76, 0.96);
+		PlotX::Axes ax8(0.48, 0.98, 0.82, 0.96);
 		ax8.label(false, false, false, false);
 		ax8.majorticks_off();
-		ax8.majorticks_off();
+		ax8.minorticks_off();
 
 		ax8.annotate("Telescope = " + obsinfo["Telescope"], 0.02, 0.91, {{"fontsize", fontsize}});
 		ax8.annotate("Beam = " + obsinfo["Beam"], 0.02, 0.80, {{"fontsize", fontsize}});
@@ -590,21 +618,31 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 		ax8.annotate("P0 (s) = " + s_p0, 0.02, 0.47, {{"fontsize", fontsize}});
 		ax8.annotate("P1 (s/s) = " + s_p1, 0.02, 0.36, {{"fontsize", fontsize}});
 		ax8.annotate("DM (pc/cc) = " + s_dm, 0.02, 0.25, {{"fontsize", fontsize}});
-		ax8.annotate("acc (m/s/s) = " + s_acc, 0.02, 0.14, {{"fontsize", fontsize}});
-		ax8.annotate("S/N = " + s_snr, 0.02, 0.03, {{"fontsize", fontsize}});
+		ax8.annotate("RM (rad/m/m) = "+s_RM, 0.02, 0.14,{{"fontsize", fontsize}});
 		ax8.annotate("Source name = " + obsinfo["Source_name"], 0.46, 0.91, {{"fontsize", fontsize}});
-		ax8.annotate("Date (MJD) = " + obsinfo["Date"], 0.46, 0.80, {{"fontsize", fontsize}});
+		ax8.annotate("Pepoch (MJD) = " + obsinfo["Pepoch"], 0.46, 0.80, {{"fontsize", fontsize}});
 		ax8.annotate("GL (deg) = " + s_gl, 0.46, 0.69, {{"fontsize", fontsize}});
 		ax8.annotate("GB (deg) = " + s_gb, 0.46, 0.58, {{"fontsize", fontsize}});
-		ax8.annotate("F0 (Hz) = " + s_f0, 0.46, 0.47, {{"fontsize", fontsize}});
-		ax8.annotate("F1 (Hz/s) = " + s_f1, 0.46, 0.36, {{"fontsize", fontsize}});
-		ax8.annotate("MaxDM YMW16  (pc/cc) = " + s_ymw16_maxdm, 0.46, 0.25, {{"fontsize", fontsize}});
-		ax8.annotate("Distance YMW16 (pc) = " + s_ymw16_dist, 0.46, 0.14, {{"fontsize", fontsize}});
-		ax8.annotate("Pepoch (MJD) = " + obsinfo["Pepoch"], 0.46, 0.03, {{"fontsize", fontsize}});
+		ax8.annotate("MaxDM YMW16  (pc/cc) = " + s_ymw16_maxdm, 0.46, 0.47, {{"fontsize", fontsize}});
+		ax8.annotate("acc (m/s/s) = " + s_acc, 0.46, 0.36, {{"fontsize", fontsize}});
+                ax8.annotate("S/N = " + s_snr, 0.46, 0.25, {{"fontsize", fontsize}});
+		//ax8.annotate("Distance YMW16 (pc) = " + s_ymw16_dist, 0.46, 0.14, {{"fontsize", fontsize}});
+		//ax8.annotate("Pepoch (MJD) = " + obsinfo["Pepoch"], 0.46, 0.03, {{"fontsize", fontsize}});
 
 		ax8.annotate(obsinfo["Filename"], 0.07, 0.97, {{"xycoords","figure fraction"}, {"fontsize", "0.45"}});
 		fig.push(ax8);
 
+		PlotX::Axes ax9(0.48, 0.98, 0.68, 0.8);
+		ax9.plot(gridsearch.RM_trials, gridsearch.Lavg);
+		ax9.axvline(gridsearch.bestRM, 0, 1, {{"color", "red"}});
+		ax9.set_ylabel("L");
+		ax9.autoscale(true, "x", true);
+		ax9.set_fontsize_label(fontsize_label);
+		ax9.set_fontsize_ticklabel(fontsize_ticklabel);
+		ax9.annotate("RM syn", 0.6, 0.9, {{"xycoords","axes fraction"}, {"fontsize", "0.5"}});
+                ax9.label(true, false, false, false);
+		fig.push(ax9);
+		
 		fig.save(figname+"/PNG");
 #endif
 	}

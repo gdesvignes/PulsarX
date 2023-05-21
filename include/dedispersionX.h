@@ -63,7 +63,7 @@ namespace Pulsar
 		void get_subdata(double dm, DataBuffer<float> &subdata);
 		void get_subdata_tem(double dm, DataBuffer<float> &subdata)
 		{
-			subdata.resize(ndump, nsubband);
+		  subdata.resize(ndump, nsubband, 1);
 			subdata.tsamp = tsamp;
 			subdata.frequencies = frequencies_sub;
 		}

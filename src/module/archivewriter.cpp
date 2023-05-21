@@ -74,7 +74,7 @@ void ArchiveWriter::prepare(Pulsar::ArchiveLite &arch, Pulsar::GridSearch &grid)
 	assert(mode == Integration::FOLD);
 
 	start_mjd = arch.start_mjd;
-	npol = 1;
+	npol = arch.npol;
 	nchan = arch.nchan;
 	nbin = arch.nbin;
 	tbin = arch.tbin;
@@ -123,7 +123,7 @@ void ArchiveWriter::run(Pulsar::ArchiveLite &arch, Pulsar::GridSearch &grid)
 
 	vector<float> profiles;
 	get_dedispersion(profiles, arch, grid);
-	run(profiles, grid.nsubint, 1, nchan, nbin, fold_periods, tsubints, offs_subs);
+	run(profiles, grid.nsubint, npol, nchan, nbin, fold_periods, tsubints, offs_subs);
 }
 
 void ArchiveWriter::run(vector<float> &profile, int np, int nc, int nb, double fold_period = 0., double tsubint = 0., double offs_sub = 0.)

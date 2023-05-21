@@ -44,11 +44,11 @@ public:
 			fmin = frequencies[j]<fmin? frequencies[j]:fmin;
 		}
 
-		profiles.resize(grid.nsubint*1*nchan*nbin, 0.);
+		profiles.resize(grid.nsubint*npol*nchan*nbin, 0.);
 
 		for (long int l=0; l<grid.nsubint; l++)
 		{
-			for (long int k=0; k<1; k++)
+			for (long int k=0; k<npol; k++)
 			{
 				for (long int j=0; j<nchan; j++)
 				{
@@ -58,11 +58,11 @@ public:
 
 					for (long int i=0; i<delayn; i++)
 					{
-						profiles[l*1*nchan*nbin+k*nchan*nbin+j*nbin+i] = grid.profiles[l*nchan*nbin+j*nbin+(i-delayn+nbin)];
+						profiles[l*npol*nchan*nbin+k*nchan*nbin+j*nbin+i] = grid.profiles[l*nchan*nbin+j*nbin+(i-delayn+nbin) + k*grid.nsubint*nchan*nbin];
 					}
 					for (long int i=delayn; i<nbin; i++)
 					{
-						profiles[l*1*nchan*nbin+k*nchan*nbin+j*nbin+i] = grid.profiles[l*nchan*nbin+j*nbin+(i-delayn)];
+						profiles[l*npol*nchan*nbin+k*nchan*nbin+j*nbin+i] = grid.profiles[l*nchan*nbin+j*nbin+(i-delayn) + k*grid.nsubint*nchan*nbin];
 					}
 				}
 			}

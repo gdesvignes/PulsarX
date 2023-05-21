@@ -145,17 +145,6 @@ void FilterbankReader::read_header()
 
 	frequencies.resize(nchans, 0.);
 	std::memcpy(frequencies.data(), fil[0].frequency_table, sizeof(double) * nchans);
-
-	if (poltype == Integration::IQUV)
-	{
-		norm_x.resize(nchans, 1.);
-		norm_y.resize(nchans, 0.);
-	}
-	else
-	{
-		norm_x.resize(nchans, 1.);
-		norm_y.resize(nchans, 1.);
-	}
 }
 
 size_t FilterbankReader::read_data(DataBuffer<float> &databuffer, size_t ndump, bool virtual_reading)
@@ -201,48 +190,22 @@ size_t FilterbankReader::read_data(DataBuffer<float> &databuffer, size_t ndump, 
 				{
 						if (!sumif or nifs == 1)
 						{
-							if (fil[n].nbits != 32)
+							for (size_t k=0; k<nifs; k++)
 							{
-								for (size_t k=0; k<nifs; k++)
+								for (size_t j=0; j<nchans; j++)
 								{
-									for (size_t j=0; j<nchans; j++)
-									{
-										databuffer.buffer[bcnt1*nifs*nchans+k*nchans+j] = ((unsigned char *)(fil[n].data))[i*nifs*nchans+k*nchans+j] - zero_off;
-									}
-								}
-							}
-							else
-							{
-								for (size_t k=0; k<nifs; k++)
-								{
-									for (size_t j=0; j<nchans; j++)
-									{
-										databuffer.buffer[bcnt1*nifs*nchans+k*nchans+j] = ((float *)(fil[n].data))[i*nifs*nchans+k*nchans+j] - zero_off;
-									}
+									databuffer.buffer[bcnt1*nifs*nchans+k*nchans+j] = ((unsigned char *)(fil[n].data))[i*nifs*nchans+k*nchans+j] - zero_off;
 								}
 							}
 						}
 						else
 						{
-							if (fil[n].nbits != 32)
+							for (size_t j=0; j<nchans; j++)
 							{
-								for (size_t j=0; j<nchans; j++)
-								{
-									float xx = ((unsigned char *)(fil[n].data))[i*nifs*nchans+0*nchans+j] - zero_off;
-									float yy = ((unsigned char *)(fil[n].data))[i*nifs*nchans+1*nchans+j] - zero_off;
+								float xx = ((unsigned char *)(fil[n].data))[i*nifs*nchans+0*nchans+j] - zero_off;
+								float yy = ((unsigned char *)(fil[n].data))[i*nifs*nchans+1*nchans+j] - zero_off;
 
-									databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
-								}
-							}
-							else
-							{
-								for (size_t j=0; j<nchans; j++)
-								{
-									float xx = ((float *)(fil[n].data))[i*nifs*nchans+0*nchans+j] - zero_off;
-									float yy = ((float *)(fil[n].data))[i*nifs*nchans+1*nchans+j] - zero_off;
-
-									databuffer.buffer[bcnt1*nchans+j] = norm_x[j] * xx + norm_y[j] * yy;
-								}
+								databuffer.buffer[bcnt1*nchans+j] = xx + yy;
 							}
 						}
 				}

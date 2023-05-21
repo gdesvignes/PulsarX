@@ -392,7 +392,7 @@ void TreeDedispersion::get_subdata(double dm, DataBuffer<float> &subdata)
 {
 	std::vector<float> *temp = dedata.empty() ? ptr_dedata : &dedata;
 
-	subdata.resize(ndump, nsubband);
+	subdata.resize(ndump, nsubband, 1);
 	subdata.tsamp = tsamp;
 	subdata.frequencies = frequencies_sub;
 

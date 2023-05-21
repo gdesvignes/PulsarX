@@ -13,7 +13,6 @@
 #include <string>
 
 #include "filterbank.h"
-#include "integration.h"
 #include "databuffer.h"
 #include "mjd.h"
 
@@ -39,7 +38,6 @@ public:
 		apply_wts = false;
 
 		is_end = false;
-		poltype = Integration::AABB;
 	}
 	virtual ~PSRDataReader(){}
 	virtual void check() = 0;
@@ -98,7 +96,6 @@ public:
 	bool apply_zero_off;
 	bool apply_scloffs;
 	bool apply_wts;
-	std::vector<float> norm_x, norm_y;
 
 public:
 	std::string telescope;
@@ -119,7 +116,6 @@ public:
 	double tsamp;
 	std::vector<double> frequencies;
 	bool is_end;
-	enum Integration::PolType poltype;
 };
 
 #endif /* PSRDATAREADER_H */

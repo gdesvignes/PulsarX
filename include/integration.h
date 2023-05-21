@@ -13,7 +13,6 @@ class Integration
 public:
 	enum Mode{SEARCH, FOLD};
 	enum DataType{USHORT, SHORT, UINT1, UINT2, UINT4, UINT8, FLOAT};
-	enum PolType{AABB, AABBCRCI, IQUV};
 public:
 	Integration();
 	Integration(const Integration &it);

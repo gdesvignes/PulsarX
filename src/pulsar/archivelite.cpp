@@ -166,12 +166,15 @@ bool ArchiveLite::runDspsr(DataBuffer<float> &databuffer)
 	}
 
 	for (long int i=0; i<databuffer.nsamples; i++)
-	{
+	  {
+	    for (int k=0; k<databuffer.npol; k++)
+	      {
 		for (long int j=0; j<databuffer.nchans; j++)
-		{
-			profilesTPF[binplan[i]*databuffer.nchans+j] += databuffer.buffer[i*databuffer.nchans+j];
-		}
-	}
+		  {
+		    profilesTPF[binplan[i]*databuffer.npol*databuffer.nchans+k*databuffer.nchans+j] += databuffer.buffer[i*databuffer.npol*databuffer.nchans+k*databuffer.nchans+j];
+		  }
+	      }
+	  }
 
 	if (++iblock == nblock)
 	{
@@ -207,6 +210,19 @@ bool ArchiveLite::runDspsr(DataBuffer<float> &databuffer)
 			}
 		}
 
+		/*
+		for (long int ibin=0; ibin<nbin; ibin++) {
+		  for (long int ipol=0; ipol<npol; ipol++) {
+		    float tmpXX = 0.0;
+		    for (long int ichan=0; ichan<nchan; ichan++)
+		      tmpXX += sub_int.data[ipol*nchan*nbin+ichan*nbin+ibin];
+		    cout << tmpXX << " " ;
+		  }
+		  cout << endl;
+		  }*/ // GD 
+
+		//exit(-1); // GD 
+		
 		sub_int.ffold = get_ffold(epoch, ref_epoch);
 		
 		sub_mjd += sub_int.tsubint;

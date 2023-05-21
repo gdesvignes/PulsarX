@@ -24,6 +24,22 @@ public:
 	}
 	~PreprocessLite(){}
 	void prepare(DataBuffer<float> &databuffer);
+	/*PreprocessLite(const PreprocessLite &p) {
+	  td = p.td;
+	  fd = p.fd;
+	  thresig = p.thresig;
+	  filltype = p.filltype;
+	  killrate = p.killrate;
+	  equalized = p.equalized;
+	  isbusy = p.isbusy;
+	  closable = p.closable;
+	  counter = p.counter;
+	  nsamples = p.nsamples;
+	  tsamp = p.tsamp;
+	  nchans = p.nchans;
+	  npol = p.npol;
+	  resize(tsamp, nchans, npol);
+	  };*/
 	DataBuffer<float> * run(DataBuffer<float> &databuffer);
 	DataBuffer<float> * get(){return this;}
 public:
