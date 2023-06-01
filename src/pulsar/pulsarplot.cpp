@@ -639,8 +639,8 @@ void PulsarPlot::plot(const ArchiveLite &archive, GridSearch &gridsearch, std::m
 		ax9.autoscale(true, "x", true);
 		ax9.set_fontsize_label(fontsize_label);
 		ax9.set_fontsize_ticklabel(fontsize_ticklabel);
-		ax9.annotate("RM syn", 0.6, 0.9, {{"xycoords","axes fraction"}, {"fontsize", "0.5"}});
-                ax9.label(true, false, false, false);
+		ax9.annotate("RM syn", 0.6, 0.8, {{"xycoords","axes fraction"}, {"fontsize", "0.6"}});
+                ax9.label(false, false, true, false);
 		fig.push(ax9);
 		
 		fig.save(figname+"/PNG");

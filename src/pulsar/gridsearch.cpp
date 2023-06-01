@@ -224,6 +224,8 @@ void GridSearch::prepare(ArchiveLite &arch)
 	  RM_trials[i] = minRM + dRM*i;
 
 	L.resize(nchan);
+	Q.resize(nchan*nbin);
+	U.resize(nchan*nbin);
 	Lavg.resize(nRMs);
 }
 
@@ -236,28 +238,51 @@ void GridSearch::runFaraday()
   }
 
     const complex<float> ic(0.0, 1.0);
-    cout << "GridSearch::runFaraday> Nchan=" << nchan << " Pulse front (bin): " <<  pulsespan.front() << " Pulse front (bin):" << pulsespan.back() << " Nbin: " << nbin <<endl;
-    for (int j=0; j<nchan; j++) {
-      L[j] = 0.0;
+    cout << "GridSearch::runFaraday> Nchan=" << nchan << " Pulse front (bin): " <<  pulsespan.front() << " Pulse front (bin):" << pulsespan.back() << " Nbin: " << nbin << endl;
+    /*for (int j=0; j<nchan; j++) {
+      //L[j] = 0.0;
       for (int i=0; i<nsubint; i++) {
 	for (int k=0; k<nbin; k++) {
-	  if (pulsespan[0] <= k && k <= pulsespan[1]) {
+	  if (pulsespan.front() <= k && k <= pulsespan.back()) {
 	    L[j] +=  profiles[i*nchan*nbin+j*nbin+k + 1*nsubint*nchan*nbin] + ic * profiles[i*nchan*nbin+j*nbin+k+ 2*nsubint*nchan*nbin];
 	  }
-	  //cerr << j << " " << i <<" "<<k<< " "<<profiles[i*nchan*nbin+j*nbin+k] << " " << profiles[i*nchan*nbin+j*nbin+k + 1*nsubint*nchan*nbin] << " " << profiles[i*nchan*nbin+j*nbin+k + 2*nsubint*nchan*nbin]  << endl;
+	}
+      }
+    }*/
+
+    float tmpQ=0.0, tmpU=0.0; 
+    for (int j=0; j<nchan; j++) {
+      tmpQ=0.0; tmpU=0.0;
+      for (int i=0; i<nsubint; i++) {
+	for (int k=0; k<nbin; k++) {
+	  Q[j*nbin+k] += profiles[i*nchan*nbin+j*nbin+k + 1*nsubint*nchan*nbin];
+	  U[j*nbin+k] += profiles[i*nchan*nbin+j*nbin+k + 2*nsubint*nchan*nbin];
+	  tmpQ += Q[j*nbin+k];
+	  tmpU += U[j*nbin+k];
+	}
+	tmpQ /= nbin;
+	tmpU /= nbin;
+      }
+      
+      for (int k=0; k<nbin; k++) {
+	if (pulsespan.front() <= k && k <= pulsespan.back()) {
+	  Q[j*nbin+k] -= tmpQ;
+	  U[j*nbin+k] -= tmpU;
+	  L[j] += Q[j*nbin+k] + ic*U[j*nbin+k];
 	}
       }
     }
+    // Free Q and U
+    std::vector<float>().swap(Q);
+    std::vector<float>().swap(U);
+    
     const complex<float> ic2(0.0, -2.0);
     complex<float> tmp;
     for (int i=0; i<nRMs; i++) {
         tmp =  0.0;
-        for (int j=0; j<nchan; j++) {
-
-            tmp += (L[j] * exp(ic2 * lambda2[j] * RM_trials[i]));
-        }
+	for (int j=0; j<nchan; j++) 
+	  tmp += (L[j] * exp(ic2 * lambda2[j] * RM_trials[i]));
 	Lavg[i] = fabs(tmp);
-	//cout <<RM_trials[i] << " " <<  Lavg[i] << endl;
     }
 
     auto bestRMidx = distance(Lavg.begin(), max_element(begin(Lavg), end(Lavg)) );

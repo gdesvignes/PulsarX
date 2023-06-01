@@ -98,8 +98,8 @@ namespace Pulsar
 		int npol;
 		double mean;
 		double var;
-	  double rmlim;
-	  double rmstep;
+	  	double rmlim;
+	  	double rmstep;
 		vector<double> ffold;
 		vector<double> tsuboff;
 		vector<double> frequencies;
@@ -127,6 +127,8 @@ namespace Pulsar
 	public: // Faraday stuff
 		long unsigned int nRMs;
 		vector<complex<float>> L;
+	  	vector<float> Q;
+		vector<float> U;
 		vector<float> Lavg;
 		vector<float> RM_trials;
 		vector<float> lambda2;
