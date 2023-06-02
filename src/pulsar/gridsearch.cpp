@@ -232,23 +232,16 @@ void GridSearch::prepare(ArchiveLite &arch)
 void GridSearch::runFaraday()
 {
 
-  if (pulsespan.back()>nbin || pulsespan.back()<0 || pulsespan.front() > nbin || pulsespan.front() < 0 || pulsespan.back()<=pulsespan.front()) {
+  if (pulsespan.front() == pulsespan.back()) {
     cout <<"GridSearch::Faraday> " << pulsespan.front() << " " << pulsespan.back() << " " << nbin << endl;
      return;
   }
 
-    const complex<float> ic(0.0, 1.0);
-    cout << "GridSearch::runFaraday> Nchan=" << nchan << " Pulse front (bin): " <<  pulsespan.front() << " Pulse front (bin):" << pulsespan.back() << " Nbin: " << nbin << endl;
-    /*for (int j=0; j<nchan; j++) {
-      //L[j] = 0.0;
-      for (int i=0; i<nsubint; i++) {
-	for (int k=0; k<nbin; k++) {
-	  if (pulsespan.front() <= k && k <= pulsespan.back()) {
-	    L[j] +=  profiles[i*nchan*nbin+j*nbin+k + 1*nsubint*nchan*nbin] + ic * profiles[i*nchan*nbin+j*nbin+k+ 2*nsubint*nchan*nbin];
-	  }
-	}
-      }
-    }*/
+  int wrap = 0;
+  if (pulsespan.front() > pulsespan.back()) wrap = 1;
+  
+  const complex<float> ic(0.0, 1.0);
+  cout << "GridSearch::runFaraday> Nchan=" << nchan << " Pulse front (bin): " <<  pulsespan.front() << " Pulse front (bin):" << pulsespan.back() << " Nbin: " << nbin << endl;
 
     float tmpQ=0.0, tmpU=0.0; 
     for (int j=0; j<nchan; j++) {
@@ -265,7 +258,7 @@ void GridSearch::runFaraday()
       }
       
       for (int k=0; k<nbin; k++) {
-	if (pulsespan.front() <= k && k <= pulsespan.back()) {
+	if (pulsespan.front() <= k && k <= pulsespan.back() || wrap && k <= pulsespan.back() || wrap && k >= pulsespan.front()) {
 	  Q[j*nbin+k] -= tmpQ;
 	  U[j*nbin+k] -= tmpU;
 	  L[j] += Q[j*nbin+k] + ic*U[j*nbin+k];
