@@ -17,6 +17,7 @@
 #include <iomanip>
 #include <string.h>
 #include <utility>
+#include <climits>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -89,6 +90,7 @@ int main(int argc, const char *argv[])
 			("template", value<string>(), "Input fold template file")
 			("nbin,b", value<int>()->default_value(32), "Number of bins per period")
 			("nbinplan", value<vector<float>>()->multitoken()->default_value(vector<float>{0.1, 128}, "0.1, 128"), "Using nbins of nbin,nbin1,nbin2,... for 0,p1,p2,... (s)")
+	                ("icands", value<vector<unsigned short>>()->multitoken()->default_value(vector<unsigned short>{1, USHRT_MAX}, "1, USHRT_MAX"), "Fold candidates ranked between i and k")
 			("tsubint,L", value<double>()->default_value(10), "Time length per integration (s)")
 			("nsubband,n", value<int>()->default_value(32), "Number of subband")
 			("blocksize", value<int>()->default_value(2), "Size of data block (s)")
@@ -1000,6 +1002,8 @@ void produce(variables_map &vm, std::vector<std::vector<double>> &dmsegs, vector
 	fdr.acc = vm["acc"].as<double>();
 	fdr.nbin = vm["nbin"].as<int>();
 
+
+	vector<unsigned short> icands = vm["icands"].as<vector<unsigned short>>();
 	std::vector<float> vp0;
 	std::vector<int> vnbin;
 	std::vector<float> nbinplan = vm["nbinplan"].as<std::vector<float>>();
@@ -1016,6 +1020,7 @@ void produce(variables_map &vm, std::vector<std::vector<double>> &dmsegs, vector
 	{
 		string filename = vm["candfile"].as<string>();
 		string line;
+		int icand;
 		ifstream candfile(filename);
 		
 		dmseg.clear();
@@ -1028,8 +1033,15 @@ void produce(variables_map &vm, std::vector<std::vector<double>> &dmsegs, vector
 			vector<string> parameters;
 			boost::split(parameters, line, boost::is_any_of("\t "), boost::token_compress_on);
 
-			dmseg.push_back(stod(parameters[1]));
+			icand = stoi(parameters[0]);
 
+			if (icands.front() <= icand && icand <= icands.back())
+			  {}
+			else
+			  continue;
+
+			dmseg.push_back(stod(parameters[1]));
+			
 			fdr.dm = stod(parameters[1]);
 			fdr.acc = stod(parameters[2]);
 			fdr.f0 = stod(parameters[3]);
