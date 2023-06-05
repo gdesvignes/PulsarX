@@ -372,6 +372,9 @@ int main(int argc, const char *argv[])
 	std::vector<std::vector<double>> dmsegs;
 	produce(vm, dmsegs, folder);
 
+	vector<unsigned short> icands = vm["icands"].as<vector<unsigned short>>();
+	unsigned short ic1 = icands.front();
+
 	/** generate tempo2 predictor file */
 	if (vm.count("t2pred"))
 	{
@@ -597,8 +600,6 @@ int main(int argc, const char *argv[])
 		databufQ.open();
 		databufU.open();
 		databufV.open();
-
-		//exit(-1); // GD 
 	}
 
 				
@@ -853,9 +854,9 @@ int main(int argc, const char *argv[])
 	//beam
 	stringstream ss_ibeam;
 	if (vm.count("incoherent"))
-		ss_ibeam << "ifbf" << setw(5) << setfill('0') << ibeam;
+		ss_ibeam << "ifbf" << setw(5) << setfill('0') << ibeam << '_' << icands.front();
 	else
-		ss_ibeam << "cfbf" << setw(5) << setfill('0') << ibeam;
+		ss_ibeam << "cfbf" << setw(5) << setfill('0') << ibeam << '_' << icands.front();
 	string s_ibeam = ss_ibeam.str();
 	obsinfo["Beam"] = s_ibeam;	
 	//data filename
@@ -909,8 +910,9 @@ int main(int argc, const char *argv[])
 
 	for (long int k=0; k<ncand; k++)
 	{
+	        unsigned short ic1 = icands.front() + k;
 		stringstream ss_id;
-		ss_id << setw(5) << setfill('0') << k+1;
+		ss_id << setw(5) << setfill('0') << ic1;
 		string s_id = ss_id.str();
 
 		if (!noarch)
@@ -954,7 +956,7 @@ int main(int argc, const char *argv[])
 		 * 
 		 */
 
-		outfile<<k+1<<"\t\t";
+		outfile<<ic1<<"\t\t";
 		outfile<<fixed<<setprecision(8)<<folder[k].dm<<"\t\t";
 		outfile<<fixed<<setprecision(8)<<gridsearch[k].dm<<"\t\t";
 		outfile<<setprecision(15)<<gridsearch[k].err_dm<<"\t\t";
@@ -978,7 +980,7 @@ int main(int argc, const char *argv[])
 
 			obsinfo["Dist_YMW16"] = to_string(ymw16_dist);
 			Pulsar::PulsarPlot psrplot;
-			psrplot.plot(folder[k], gridsearch[k], obsinfo, k+1, rootname, fscrunch, vm.count("plotx"));
+			psrplot.plot(folder[k], gridsearch[k], obsinfo, ic1, rootname, fscrunch, vm.count("plotx"));
 		}
 	}
 
