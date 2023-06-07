@@ -360,7 +360,7 @@ bool GridSearch::bestprofiles()
 	int maxdelayn = -1;
 	for (long int k=0; k<nsubint; k++)
 	{
-		int tdelayn = round((bestdf0*tsuboff[k]+0.5*bestdf1*tsuboff[k]*tsuboff[k])*nbin);
+		int tdelayn = round((bestdf0*tsuboff[k]+0.5*bestdf1*tsuboff[k]*tsuboff[k]+1/6.*f2*tsuboff[k]*tsuboff[k]*tsuboff[k])*nbin);
 		for (long int j=0; j<nchan; j++)
 		{
 			int fdelayn = round(DedispersionLite::dmdelay(bestddm, fmax, frequencies[j])*(f0+bestdf0+(f1+bestdf1)*tsuboff[k])*nbin);
