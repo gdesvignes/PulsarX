@@ -11,7 +11,6 @@
 
 #include <fstream>
 #include <vector>
-
 #include "dedispersionlite.h"
 #include "predictor.h"
 #include "mjd.h"
@@ -113,7 +112,7 @@ namespace Pulsar
 			if (!use_t2pred)
 			{
 				long double t = (mjd-mjdref).to_second();
-				double phi = f0*t + 0.5*f1*t*t;
+				double phi = f0*t + 0.5*f1*t*t +1/6.*f2*t*t*t;
 				phi -= floor(phi);
 				return phi;
 			}
@@ -127,7 +126,7 @@ namespace Pulsar
 			if (!use_t2pred)
 			{
 				long double t = (mjd-mjdref).to_second();
-				double f = f0 + f1*t;
+				double f = f0 + f1*t + 0.5*f2*t*t;
 				return f;
 			}
 			else
@@ -140,7 +139,7 @@ namespace Pulsar
 		{
 			long double t = (start_time.to_second()+end_time.to_second())/2.;
 			t -= ref_epoch.to_second();
-			long int phi = floor(f0*t+0.5*f1*t*t);
+			long int phi = floor(f0*t+0.5*f1*t*t + 1/6.*f2*t*t*t);
 			long double tepoch = 0.;
 			if (f1 != 0)
 			{
@@ -160,6 +159,7 @@ namespace Pulsar
 		MJD ref_epoch;
 		double f0;
 		double f1;
+	        double f2;
 		double acc;
 		double dm;
 		double snr;

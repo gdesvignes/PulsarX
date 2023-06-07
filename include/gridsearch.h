@@ -83,6 +83,7 @@ namespace Pulsar
 	public:
 		double f0;
 		double f1;
+	        double f2;
 		double dm;
 		double bestdf0;
 		double bestdf1;

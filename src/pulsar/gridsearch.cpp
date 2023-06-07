@@ -22,6 +22,7 @@ GridSearch::GridSearch()
 	dmsearch = false;
 	f0 = 0.;
 	f1 = 0.;
+	f2 = 0.;
 	dm = 0.;
 	bestdf0 = 0.;
 	bestdf1 = 0.;
@@ -62,6 +63,7 @@ GridSearch::GridSearch(const GridSearch &gridsearch)
 	dmsearch = gridsearch.dmsearch;
 	f0 = gridsearch.f0;
 	f1 = gridsearch.f1;
+	f2 = gridsearch.f2;
 	dm = gridsearch.dm;
 	bestdf0 = gridsearch.bestdf0;
 	bestdf1 = gridsearch.bestdf1;
@@ -108,6 +110,7 @@ GridSearch & GridSearch::operator=(const GridSearch &gridsearch)
 	dmsearch = gridsearch.dmsearch;
 	f0 = gridsearch.f0;
 	f1 = gridsearch.f1;
+	f2 = gridsearch.f2;
 	dm = gridsearch.dm;
 	bestdf0 = gridsearch.bestdf0;
 	bestdf1 = gridsearch.bestdf1;
@@ -156,6 +159,7 @@ void GridSearch::prepare(ArchiveLite &arch)
 {
 	f0 = arch.f0;
 	f1 = arch.f1;
+	f2 = arch.f2;
 	dm = arch.dm;
 
 	nsubint = arch.profiles.size();
@@ -233,7 +237,7 @@ void GridSearch::runFFdot()
 			float *pmxtph = &mxtph[0];
 			for (long int j=0; j<nsubint; j++)
 			{
-				int delayn = round((df0*tsuboff[j]+0.5*df1*tsuboff[j]*tsuboff[j])*nbin);
+				int delayn = round((df0*tsuboff[j]+0.5*df1*tsuboff[j]*tsuboff[j]+1/6.*f2*tsuboff[j]*tsuboff[j]*tsuboff[j])*nbin);
 				delayn %= nbin;
 				if (delayn<0) delayn += nbin;
 				float *pd = pmxtph-delayn+nbin;

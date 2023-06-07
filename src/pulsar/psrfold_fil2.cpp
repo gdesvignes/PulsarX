@@ -74,6 +74,7 @@ int main(int argc, const char *argv[])
 			("dm", value<double>()->default_value(0), "DM (pc/cc)")
 			("f0", value<double>()->default_value(0), "F0 (Hz)")
 			("f1", value<double>()->default_value(0), "F1 (Hz/s)")
+                	("f2", value<double>()->default_value(0), "F2 (Hz/s/s)")
 			("acc", value<double>()->default_value(0), "Acceleration (m/s/s)")
 			("pepoch", value<double>(), "F0/F1/acc epoch (MJD)")
 			("scale", value<int>()->default_value(1), "F0,F1,dm search range scale in phase")
@@ -574,7 +575,6 @@ int main(int argc, const char *argv[])
 				if (dedisp.get_counter(folder[k].dm) >= offsets[k] + ndumps[k])
 				{
 					BOOST_LOG_TRIVIAL(debug)<<"fold cand "<<k;
-
 					if (vm.count("dspsr"))
 						folder[k].runDspsr(subdata);
 					else
@@ -594,8 +594,7 @@ int main(int argc, const char *argv[])
 				
 				if (dedisp.get_counter(folder[k].dm) >= offsets[k] + ndumps[k])
 				{
-					BOOST_LOG_TRIVIAL(debug)<<"fold cand "<<k;
-
+				  BOOST_LOG_TRIVIAL(debug)<<"fold cand "<<k;
 					if (vm.count("dspsr"))
 						folder[k].runDspsr(subdatas[thread_id]);
 					else
@@ -680,6 +679,7 @@ int main(int argc, const char *argv[])
 		double dm = folder[k].dm;
 		double f0 = folder[k].f0;
 		double f1 = folder[k].f1;
+		gridsearch[k].f2 = folder[k].f2;
 
 		if (!nodmsearch)
 		{
@@ -997,6 +997,7 @@ void produce(variables_map &vm, std::list<double> &dmlist, vector<Pulsar::Archiv
 	fdr.dm = vm["dm"].as<double>();
 	fdr.f0 = vm["f0"].as<double>();
 	fdr.f1 = vm["f1"].as<double>();
+	fdr.f2 = vm["f2"].as<double>();
 	fdr.acc = vm["acc"].as<double>();
 	fdr.nbin = vm["nbin"].as<int>();
 
@@ -1028,12 +1029,24 @@ void produce(variables_map &vm, std::list<double> &dmlist, vector<Pulsar::Archiv
 			boost::split(parameters, line, boost::is_any_of("\t "), boost::token_compress_on);
 
 			dmlist.push_back(stod(parameters[1]));
-
-			fdr.dm = stod(parameters[1]);
-			fdr.acc = stod(parameters[2]);
-			fdr.f0 = stod(parameters[3]);
-			fdr.f1 = stod(parameters[4]);
-			fdr.snr = stod(parameters[5]);
+			if (parameters.size()==6) {
+			  cout << "Assuming jerk parameter is NOT available in candfile. i.e. f2 is set to 0" << endl;
+			  fdr.dm = stod(parameters[1]);
+			  fdr.acc = stod(parameters[2]);
+			  fdr.f0 = stod(parameters[3]);
+			  fdr.f1 = stod(parameters[4]);
+			  fdr.snr = stod(parameters[5]);
+			} else if (parameters.size()==7) {
+			  fdr.dm = stod(parameters[1]);
+			  fdr.acc = stod(parameters[2]);
+			  fdr.f0 = stod(parameters[3]);
+			  fdr.f1 = stod(parameters[4]);
+			  fdr.f2 = stod(parameters[5]);
+			  fdr.snr = stod(parameters[6]);
+			  cout << "Assuming jerk parameter ("<< fdr.f2<<") is available in candfile" << endl;
+			} else {
+			  cout << "Unexpected number (" << parameters.size() << ") of parameters in candfile" << endl;
+			}
 
 			for (long int k=0; k<vp0.size(); k++)
 			{
